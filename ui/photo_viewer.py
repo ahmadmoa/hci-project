@@ -9,7 +9,8 @@ class PhotoViewer(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.photos = ['path/to/photo1.jpg', 'path/to/photo2.jpg', 'path/to/photo3.jpg']
+        # Correct paths to the images
+        self.photos = ['./data/images/1.png', './data/images/3.png', './data/images/4.png']
         self.current_index = 0
 
         self.label = QLabel(self)
