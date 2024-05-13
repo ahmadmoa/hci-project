@@ -2,7 +2,7 @@ import mne
 import numpy as np
 
 from read import load_data
-from preprocess import preprocess_data
+from preprocessing import preprocess_data
 
 def load_and_preprocess(file):
     raw = load_data(file)
@@ -25,6 +25,34 @@ def load_data_from_files(file_list):
         all_data.append(data)
         all_labels.append(labels)
     return np.concatenate(all_data), np.concatenate(all_labels)
+# def visualize_data(raw):
+#     # Plot the raw data
+#     raw.plot()
+#
+#     # Plot the power spectral density (PSD)
+#     raw.plot_psd()
+#
+#     # Plot events (if available)
+#     try:
+#         events = mne.find_events(raw, stim_channel='STI 014')
+#     except ValueError:
+#         events, _ = mne.events_from_annotations(raw)
+#     mne.viz.plot_events(events, raw.info['sfreq'])
+#
+#     # Plot the topography of the data
+#     raw.plot_sensors()
+#
+#     # Plot the channel locations
+#     raw.plot_sensors(kind='3d')
+#
+#     # Plot the average reference
+#     raw.plot(proj=True)
+#
+# # Load the data
+# raw_data = load_data("../data/A01T.gdf")
+#
+# # Visualize the data
+# visualize_data(raw_data)
 
 if __name__ == '__main__':
     # List of training and evaluation files
