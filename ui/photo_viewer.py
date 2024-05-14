@@ -8,7 +8,7 @@ import mne
 import numpy as np
 from preprocessing.preprocessing import preprocess_data
 from preprocessing.read import load_data
-from models.modle import extract_features
+from models.model import extract_features
 
 
 class PhotoViewer(QWidget):
@@ -19,7 +19,7 @@ class PhotoViewer(QWidget):
         self.lda_model = load('lda_model.joblib')
 
     def initUI(self):
-        self.photos = ['./data/images/1.png', './data/images/3.png', './data/images/4.png']
+        self.photos = ['./data/images/1.png', './data/images/2.png', './data/images/3.png', './data/images/4.png', './data/images/5.png']
         self.current_index = len(self.photos) // 2  # Center the initial selection
 
         # Create widgets
@@ -160,29 +160,19 @@ class PhotoViewer(QWidget):
 
     def process_predictions(self, predictions):
         print(f"Processing {len(predictions)} predictions.")
-        movement = 0  # Calculate net movement
         for prediction in predictions:
             if prediction == 0:  # left hand
-                movement -= 1
+                self.show_prev_photo()
             elif prediction == 1:  # right hand
-                movement += 1
-
-        new_index = self.current_index + movement
-        new_index = max(0, min(new_index, len(self.photos) - 1))  # Ensure the index is within bounds
-
-        print(f"Current index: {self.current_index}, Movement: {movement}, New index: {new_index}")
-
-        self.set_current_index(new_index)
+                self.show_next_photo()
 
     def show_prev_photo(self):
         if self.current_index > 0:
-            self.current_index -= 1
-            self.update_photo()
+            self.set_current_index(self.current_index - 1)
 
     def show_next_photo(self):
         if self.current_index < len(self.photos) - 1:
-            self.current_index += 1
-            self.update_photo()
+            self.set_current_index(self.current_index + 1)
 
     def update_photo(self):
         self.pixmap = QPixmap(self.photos[self.current_index])
