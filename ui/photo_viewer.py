@@ -1,15 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, \
-    QComboBox, QScrollArea, QHBoxLayout
+    QComboBox, QScrollArea
 from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtCore import Qt, QTimer
 from joblib import load
 import mne
 import numpy as np
-from preprocessing.preprocessing import preprocess_data
-from preprocessing.read import load_data
+from preprocessing.preprocessing import preprocess_data, load_and_preprocess
 from models.model import extract_features
-
 
 class PhotoViewer(QWidget):
     def __init__(self):
@@ -17,6 +15,8 @@ class PhotoViewer(QWidget):
         self.initUI()
         self.svm_model = load('svm_model.joblib')
         self.lda_model = load('lda_model.joblib')
+        self.lr_model = load('lr_model.joblib')
+        self.csp_model = load('csp_model.joblib')
 
     def initUI(self):
         self.photos = ['./data/images/1.png', './data/images/2.png', './data/images/3.png', './data/images/4.png', './data/images/5.png']
@@ -34,7 +34,7 @@ class PhotoViewer(QWidget):
         self.right_button = QPushButton('>', self)
         self.browse_button = QPushButton('Browse Evaluation File', self)
         self.model_selector = QComboBox(self)
-        self.model_selector.addItems(['SVM', 'LDA'])
+        self.model_selector.addItems(['SVM', 'LDA', 'LR'])
 
         # Set fonts
         button_font = QFont('Arial', 14, QFont.Bold)
@@ -82,19 +82,6 @@ class PhotoViewer(QWidget):
         self.setStyleSheet("background-color: #f5f5f5;")
         self.show()
 
-        # Center the initial selection
-        QTimer.singleShot(100, self.center_initial_selection)
-
-    def center_initial_selection(self):
-        # Calculate the position to center the selected thumbnail
-        if self.current_index < len(self.photos):
-            selected_thumbnail = self.thumb_layout.itemAt(self.current_index).widget()
-            if selected_thumbnail:
-                scroll_area_width = self.slider.viewport().width()
-                thumbnail_width = selected_thumbnail.width()
-                offset = selected_thumbnail.pos().x() - (scroll_area_width // 2) + (thumbnail_width // 2)
-                self.slider.horizontalScrollBar().setValue(offset)
-
     def update_thumbnails(self):
         # Clear existing thumbnails
         while self.thumb_layout.count():
@@ -128,15 +115,14 @@ class PhotoViewer(QWidget):
         model_type = self.model_selector.currentText()
         print(f"Using model: {model_type}")
 
-        raw = load_data(file_path)
-        raw = preprocess_data(raw)
+        raw = load_and_preprocess(file_path)
         events, event_id = mne.events_from_annotations(raw)
 
-        left_hand_event_id = event_id.get('768', 0)
-        right_hand_event_id = event_id.get('783', 0)
+        left_hand_event_id = event_id.get('769', 0)
+        right_hand_event_id = event_id.get('770', 0)
 
         if left_hand_event_id == 0 or right_hand_event_id == 0:
-            print(f"Required event IDs (768, 783) not found in the data for file {file_path}.")
+            print(f"Required event IDs (769, 770) not found in the data for file {file_path}.")
             return
 
         epochs = mne.Epochs(raw, events, event_id={'left_hand': left_hand_event_id, 'right_hand': right_hand_event_id},
@@ -144,12 +130,14 @@ class PhotoViewer(QWidget):
         epochs_data = epochs.get_data()
         labels = epochs.events[:, -1] - left_hand_event_id
 
-        features = extract_features(epochs_data, labels)
+        features = self.csp_model.transform(epochs_data)
 
         if model_type == 'SVM':
             predictions = self.svm_model.predict(features)
         elif model_type == 'LDA':
             predictions = self.lda_model.predict(features)
+        elif model_type == 'LR':
+            predictions = self.lr_model.predict(features)
         else:
             print(f"Unknown model type: {model_type}")
             return
@@ -162,23 +150,24 @@ class PhotoViewer(QWidget):
         print(f"Processing {len(predictions)} predictions.")
         for prediction in predictions:
             if prediction == 0:  # left hand
-                self.show_prev_photo()
+                print("Prediction: left hand")
+                QTimer.singleShot(50, self.show_next_photo)
             elif prediction == 1:  # right hand
-                self.show_next_photo()
+                print("Prediction: right hand")
+                QTimer.singleShot(50, self.show_prev_photo)
 
     def show_prev_photo(self):
-        if self.current_index > 0:
-            self.set_current_index(self.current_index - 1)
+        self.current_index = (self.current_index - 1) % len(self.photos)
+        self.update_photo()
 
     def show_next_photo(self):
-        if self.current_index < len(self.photos) - 1:
-            self.set_current_index(self.current_index + 1)
+        self.current_index = (self.current_index + 1) % len(self.photos)
+        self.update_photo()
 
     def update_photo(self):
         self.pixmap = QPixmap(self.photos[self.current_index])
         self.label.setPixmap(self.pixmap)
         self.update_thumbnails()
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
